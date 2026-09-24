@@ -14,34 +14,57 @@ public static class StorageService
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Clipboard");
 
     private static readonly string HistoryFilePath = Path.Combine(AppDataDir, "history.json");
+    private static readonly string BackupFilePath = Path.Combine(AppDataDir, "history.json.bak");
+    private static readonly string TempFilePath = Path.Combine(AppDataDir, "history.json.tmp");
 
     public record SavedItem(string Content, DateTime CopiedAt, bool IsPinned);
 
     public static List<ClipboardItem> LoadHistory()
     {
-        try
+        // 1. Try reading primary history file
+        if (File.Exists(HistoryFilePath))
         {
-            if (!File.Exists(HistoryFilePath))
+            try
             {
-                return new List<ClipboardItem>();
+                var json = File.ReadAllText(HistoryFilePath);
+                var savedItems = JsonSerializer.Deserialize<List<SavedItem>>(json);
+                if (savedItems != null && savedItems.Count > 0)
+                {
+                    return ConvertItems(savedItems);
+                }
             }
-
-            var json = File.ReadAllText(HistoryFilePath);
-            var savedItems = JsonSerializer.Deserialize<List<SavedItem>>(json);
-
-            if (savedItems == null) return new List<ClipboardItem>();
-
-            return savedItems.Select(s => new ClipboardItem
+            catch
             {
-                Content = s.Content,
-                CopiedAt = s.CopiedAt,
-                IsPinned = s.IsPinned
-            }).ToList();
+                // Corrupted or interrupted write - attempt recovery from backup
+            }
         }
-        catch
+
+        // 2. Try reading resilient backup file
+        if (File.Exists(BackupFilePath))
         {
-            return new List<ClipboardItem>();
+            try
+            {
+                var json = File.ReadAllText(BackupFilePath);
+                var savedItems = JsonSerializer.Deserialize<List<SavedItem>>(json);
+                if (savedItems != null && savedItems.Count > 0)
+                {
+                    return ConvertItems(savedItems);
+                }
+            }
+            catch { }
         }
+
+        return new List<ClipboardItem>();
+    }
+
+    private static List<ClipboardItem> ConvertItems(List<SavedItem> saved)
+    {
+        return saved.Select(s => new ClipboardItem
+        {
+            Content = s.Content,
+            CopiedAt = s.CopiedAt,
+            IsPinned = s.IsPinned
+        }).ToList();
     }
 
     public static void SaveHistory(IEnumerable<ClipboardItem> items)
@@ -55,8 +78,24 @@ public static class StorageService
 
             var toSave = items.Take(80).Select(i => new SavedItem(i.Content, i.CopiedAt, i.IsPinned)).ToList();
             var json = JsonSerializer.Serialize(toSave, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(HistoryFilePath, json);
+
+            // 1. Write atomic temp file first
+            File.WriteAllText(TempFilePath, json);
+
+            // 2. Preserve existing valid file as backup
+            if (File.Exists(HistoryFilePath))
+            {
+                try
+                {
+                    File.Copy(HistoryFilePath, BackupFilePath, overwrite: true);
+                }
+                catch { }
+            }
+
+            // 3. Atomically replace primary file
+            File.Move(TempFilePath, HistoryFilePath, overwrite: true);
         }
         catch { }
     }
 }
+

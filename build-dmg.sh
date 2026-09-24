@@ -6,7 +6,7 @@ VERSION="${2:-1.0.0}"
 APP_NAME="MacDesktopApp"
 DISPLAY_NAME="Clipboard"
 OUTPUT_DIR="dist-${ARCH}"
-BUNDLE_DIR="${OUTPUT_DIR}/${APP_NAME}.app"
+BUNDLE_DIR="${OUTPUT_DIR}/${DISPLAY_NAME}.app"
 DMG_NAME="Clipboard-${VERSION}-${ARCH#osx-}.dmg"
 
 echo "==> Building ${DISPLAY_NAME} for ${ARCH} (v${VERSION})..."
@@ -59,7 +59,7 @@ EOF
 chmod +x "${BUNDLE_DIR}/Contents/MacOS/${APP_NAME}"
 
 # 4. Ad-hoc Code Sign
-echo "==> Signing ${APP_NAME}.app..."
+echo "==> Signing ${DISPLAY_NAME}.app..."
 codesign --force --deep -s - "${BUNDLE_DIR}"
 
 # 5. Create DMG Installer
