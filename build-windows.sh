@@ -10,8 +10,13 @@ ZIP_NAME="${PACKAGE_NAME}.zip"
 
 echo "==> Building Clipboard for Windows (${ARCH}, v${VERSION})..."
 
-# 1. Publish Self-Contained
-dotnet publish -c Release -r "${ARCH}" --self-contained true -o "${OUTPUT_DIR}/${PACKAGE_NAME}"
+# 1. Publish Native AOT with fallback
+if dotnet publish -c Release -r "${ARCH}" -p:PublishAot=true -o "${OUTPUT_DIR}/${PACKAGE_NAME}"; then
+    echo "==> Native AOT publish succeeded for ${ARCH}"
+else
+    echo "==> Native AOT failed, falling back to trimmed self-contained publish..."
+    dotnet publish -c Release -r "${ARCH}" --self-contained true -p:PublishTrimmed=true -o "${OUTPUT_DIR}/${PACKAGE_NAME}"
+fi
 
 # 2. Create Zip Archive with cross-platform fallbacks
 echo "==> Creating ${ZIP_NAME}..."

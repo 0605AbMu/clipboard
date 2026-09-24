@@ -149,6 +149,7 @@ public partial class App : Application
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2026")]
     private void DisableAvaloniaDataAnnotationValidation()
     {
         var dataValidationPluginsToRemove =

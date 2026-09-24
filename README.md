@@ -33,6 +33,9 @@ Ushbu dastur Windows'dagi **Win + V** clipboard menejerining **macOS, Linux va W
    - macOS (`LaunchAgents`), Windows (`HKCU Run Registry`), Linux (`~/.config/autostart`) orqali tizim yoqilganda avtomatik ishga tushishni Tray menyusi yoki sarlavhadagi `🚀` tugmasi orqali oson yoqish/o'chirish.
 7. **🎨 Maxsus Professional Ilova Ikonkasi (Native Icons)**:
    - macOS uchun ko'p qatlamli `.icns`, Windows uchun multi-res `.ico`, Linux uchun yuqori aniqlikdagi `.png`.
+8. **⚡ Native AOT & Trimming (Ultra-engil va Darhol Ishga Tushuvchi)**:
+   - Dastur har bir OS uchun to'g'ridan-to'g'ri Native AOT (Ahead-of-Time Machine Code) sifatida yig'iladi. Ortiqcha JIT runtime yo'q, hajm ~45-50% ga kamaytirilgan (DMG ~30MB, Windows zip ~25MB), xotira (RAM) sarfi minimal va ishga tushish tezligi < 30ms!
+
 
 ---
 

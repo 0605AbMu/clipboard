@@ -3,9 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MacDesktopApp.Models;
 
 namespace MacDesktopApp.Services;
+
+[JsonSourceGenerationOptions(WriteIndented = true)]
+[JsonSerializable(typeof(List<StorageService.SavedItem>))]
+internal partial class StorageJsonContext : JsonSerializerContext
+{
+}
 
 public static class StorageService
 {
@@ -27,7 +34,7 @@ public static class StorageService
             try
             {
                 var json = File.ReadAllText(HistoryFilePath);
-                var savedItems = JsonSerializer.Deserialize<List<SavedItem>>(json);
+                var savedItems = JsonSerializer.Deserialize(json, StorageJsonContext.Default.ListSavedItem);
                 if (savedItems != null && savedItems.Count > 0)
                 {
                     return ConvertItems(savedItems);
@@ -45,7 +52,7 @@ public static class StorageService
             try
             {
                 var json = File.ReadAllText(BackupFilePath);
-                var savedItems = JsonSerializer.Deserialize<List<SavedItem>>(json);
+                var savedItems = JsonSerializer.Deserialize(json, StorageJsonContext.Default.ListSavedItem);
                 if (savedItems != null && savedItems.Count > 0)
                 {
                     return ConvertItems(savedItems);
@@ -77,7 +84,7 @@ public static class StorageService
             }
 
             var toSave = items.Take(80).Select(i => new SavedItem(i.Content, i.CopiedAt, i.IsPinned)).ToList();
-            var json = JsonSerializer.Serialize(toSave, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(toSave, StorageJsonContext.Default.ListSavedItem);
 
             // 1. Write atomic temp file first
             File.WriteAllText(TempFilePath, json);

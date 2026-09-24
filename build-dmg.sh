@@ -11,8 +11,13 @@ DMG_NAME="Clipboard-${VERSION}-${ARCH#osx-}.dmg"
 
 echo "==> Building ${DISPLAY_NAME} for ${ARCH} (v${VERSION})..."
 
-# 1. Publish Self-Contained .NET 10
-dotnet publish -c Release -r "${ARCH}" --self-contained true -o "${OUTPUT_DIR}/publish"
+# 1. Publish Native AOT with fallback
+if dotnet publish -c Release -r "${ARCH}" -p:PublishAot=true -o "${OUTPUT_DIR}/publish"; then
+    echo "==> Native AOT publish succeeded for ${ARCH}"
+else
+    echo "==> Native AOT failed, falling back to trimmed self-contained publish..."
+    dotnet publish -c Release -r "${ARCH}" --self-contained true -p:PublishTrimmed=true -o "${OUTPUT_DIR}/publish"
+fi
 
 # 2. Prepare .app Bundle Structure
 rm -rf "${BUNDLE_DIR}"

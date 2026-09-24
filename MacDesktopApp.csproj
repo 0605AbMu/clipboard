@@ -6,6 +6,11 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/AppIcon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+    <!-- Native AOT and Trimming Configurations -->
+    <PublishAot Condition="'$(PublishAot)' == 'true'">true</PublishAot>
+    <StripSymbols>true</StripSymbols>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
   </PropertyGroup>
 
   <ItemGroup>
