@@ -105,20 +105,19 @@ jobs:
 
       - name: Determine Version
         id: get_version
-        shell: bash
+        shell: pwsh
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-          else
-            VERSION="1.0.0"
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $version = "1.0.0"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Publish Self-Contained Windows
-        shell: bash
+        shell: pwsh
         run: |
-          chmod +x ./build-windows.sh
-          ./build-windows.sh win-x64 ${{ steps.get_version.outputs.version }}
+          ./build-windows.ps1 -Arch win-x64 -Version ${{ steps.get_version.outputs.version }}
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
