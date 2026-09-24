@@ -73,6 +73,30 @@ public partial class App : Application
 
             menu.Add(new NativeMenuItemSeparator());
 
+            var autoStartItem = new NativeMenuItem("🚀 Tizim bilan ishga tushish")
+            {
+                ToggleType = NativeMenuItemToggleType.CheckBox,
+                IsChecked = PlatformService.Current.IsAutoStartEnabled()
+            };
+            autoStartItem.Click += (s, e) =>
+            {
+                var newState = !PlatformService.Current.IsAutoStartEnabled();
+                PlatformService.Current.SetAutoStart(newState);
+                autoStartItem.IsChecked = newState;
+                if (_viewModel != null)
+                {
+                    _viewModel.IsAutoStartEnabled = newState;
+                }
+            };
+            if (_viewModel != null)
+            {
+                _viewModel.AutoStartChanged += (state) =>
+                {
+                    Dispatcher.UIThread.Post(() => autoStartItem.IsChecked = state);
+                };
+            }
+            menu.Add(autoStartItem);
+
             var clearItem = new NativeMenuItem("🧹 Qadalmaganlarni tozalash");
             clearItem.Click += (s, e) => _viewModel?.ClearAll();
             menu.Add(clearItem);
@@ -92,7 +116,7 @@ public partial class App : Application
 
             try
             {
-                var iconStream = AssetLoader.Open(new Uri("avares://MacDesktopApp/Assets/avalonia-logo.ico"));
+                var iconStream = AssetLoader.Open(new Uri("avares://MacDesktopApp/Assets/AppIcon.ico"));
                 trayIcon.Icon = new WindowIcon(iconStream);
             }
             catch { }

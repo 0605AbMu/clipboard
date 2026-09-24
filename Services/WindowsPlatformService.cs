@@ -355,4 +355,44 @@ public class WindowsPlatformService : IPlatformService
     public void OpenAccessibilitySettings() { }
 
     public bool IsAccessibilityGranted() => true; // Windows allows SendInput without accessibility permissions
+
+    public bool IsAutoStartEnabled()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: false);
+            return key?.GetValue("Clipboard") != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void SetAutoStart(bool enabled)
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
+            if (key != null)
+            {
+                if (enabled)
+                {
+                    var exePath = Environment.ProcessPath;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        key.SetValue("Clipboard", $"\"{exePath}\"");
+                    }
+                }
+                else
+                {
+                    key.DeleteValue("Clipboard", throwOnMissingValue: false);
+                }
+            }
+        }
+        catch { }
+    }
 }
+

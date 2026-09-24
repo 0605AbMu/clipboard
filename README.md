@@ -29,6 +29,10 @@ Ushbu dastur Windows'dagi **Win + V** clipboard menejerining **macOS, Linux va W
    - `Enter` bosilganda oyna yashirinadi va matn kursor turgan joyga darhol qo'yiladi.
 5. **📌 Qadash (Pinning)** va **🧹 Tozalash**:
    - Muhim matnlarni qadab qo'yish va qadalmaganlarini bir zumda tozalash.
+6. **🚀 Tizim bilan Birga Avtomatik Ishga Tushish (Auto-start / Launch at Login)**:
+   - macOS (`LaunchAgents`), Windows (`HKCU Run Registry`), Linux (`~/.config/autostart`) orqali tizim yoqilganda avtomatik ishga tushishni Tray menyusi yoki sarlavhadagi `🚀` tugmasi orqali oson yoqish/o'chirish.
+7. **🎨 Maxsus Professional Ilova Ikonkasi (Native Icons)**:
+   - macOS uchun ko'p qatlamli `.icns`, Windows uchun multi-res `.ico`, Linux uchun yuqori aniqlikdagi `.png`.
 
 ---
 

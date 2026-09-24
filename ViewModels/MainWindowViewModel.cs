@@ -33,14 +33,27 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _needsAccessibility;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AutoStartIcon))]
+    [NotifyPropertyChangedFor(nameof(AutoStartToolTip))]
+    private bool _isAutoStartEnabled;
+
+    public string AutoStartIcon => IsAutoStartEnabled ? "🚀" : "⚡";
+    public string AutoStartToolTip => IsAutoStartEnabled
+        ? "Avtomatik ishga tushish: Yoqilgan (O'chirish uchun bosing)"
+        : "Avtomatik ishga tushish: O'chirilgan (Yoqish uchun bosing)";
+
     public ObservableCollection<ClipboardItem> AllItems { get; } = new();
     public ObservableCollection<ClipboardItem> FilteredItems { get; } = new();
 
     public event Action? RequestHideWindow;
+    public event Action<bool>? AutoStartChanged;
+
 
     public MainWindowViewModel()
     {
         CheckAccessibility();
+        _isAutoStartEnabled = PlatformService.Current.IsAutoStartEnabled();
         InitializeSampleData();
 
         _clipboardTimer = new DispatcherTimer
@@ -233,6 +246,14 @@ public partial class MainWindowViewModel : ViewModelBase
         ApplyFilter();
         UpdateCounts();
         StorageService.SaveHistory(AllItems);
+    }
+
+    [RelayCommand]
+    public void ToggleAutoStart()
+    {
+        IsAutoStartEnabled = !IsAutoStartEnabled;
+        PlatformService.Current.SetAutoStart(IsAutoStartEnabled);
+        AutoStartChanged?.Invoke(IsAutoStartEnabled);
     }
 
     [RelayCommand]

@@ -220,4 +220,61 @@ public class LinuxPlatformService : IPlatformService
     public void OpenAccessibilitySettings() { }
 
     public bool IsAccessibilityGranted() => true;
+
+    private string GetAutostartDesktopPath()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, ".config", "autostart", "clipboard.desktop");
+    }
+
+    public bool IsAutoStartEnabled()
+    {
+        try
+        {
+            return File.Exists(GetAutostartDesktopPath());
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void SetAutoStart(bool enabled)
+    {
+        try
+        {
+            var desktopPath = GetAutostartDesktopPath();
+            if (enabled)
+            {
+                var dir = Path.GetDirectoryName(desktopPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                var execPath = Environment.ProcessPath ?? "MacDesktopApp";
+                var content = $@"[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Clipboard
+Comment=Minimalist Plain-Text Clipboard Manager
+Exec={execPath}
+Icon=clipboard
+Terminal=false
+StartupNotify=false
+Categories=Utility;
+";
+                File.WriteAllText(desktopPath, content);
+            }
+            else
+            {
+                if (File.Exists(desktopPath))
+                {
+                    File.Delete(desktopPath);
+                }
+            }
+        }
+        catch { }
+    }
 }
+

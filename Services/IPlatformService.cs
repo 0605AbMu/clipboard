@@ -24,4 +24,9 @@ public interface IPlatformService
     void OpenAccessibilitySettings();
 
     bool IsAccessibilityGranted();
+
+    bool IsAutoStartEnabled();
+
+    void SetAutoStart(bool enabled);
 }
+

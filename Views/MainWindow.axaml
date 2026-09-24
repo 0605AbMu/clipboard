@@ -8,6 +8,7 @@
         x:Class="MacDesktopApp.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Clipboard"
+        Icon="/Assets/AppIcon.ico"
         Width="380" Height="440"
         MinWidth="320" MinHeight="340"
         MaxWidth="480" MaxHeight="650"
@@ -82,14 +83,22 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- Clear All Icon Button -->
-                <Button Grid.Column="1"
-                        Classes="rowAction"
-                        Command="{Binding ClearAllCommand}"
-                        ToolTip.Tip="Tarixni tozalash"
-                        Padding="5,3">
-                    <TextBlock Text="🧹" FontSize="13" />
-                </Button>
+                <!-- Actions: Autostart toggle & Clear all -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                    <Button Classes="rowAction"
+                            Command="{Binding ToggleAutoStartCommand}"
+                            ToolTip.Tip="{Binding AutoStartToolTip}"
+                            Padding="5,3">
+                        <TextBlock Text="{Binding AutoStartIcon}" FontSize="13" />
+                    </Button>
+
+                    <Button Classes="rowAction"
+                            Command="{Binding ClearAllCommand}"
+                            ToolTip.Tip="Tarixni tozalash"
+                            Padding="5,3">
+                        <TextBlock Text="🧹" FontSize="13" />
+                    </Button>
+                </StackPanel>
             </Grid>
 
             <!-- NATIVE MACOS SEARCH & PERMISSION BANNER -->

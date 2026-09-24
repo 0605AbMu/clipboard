@@ -26,10 +26,9 @@ Categories=Utility;
 StartupNotify=false
 EOF
 
-# Convert or copy icon
-if [ -f "Assets/AppIcon.icns" ] && which sips >/dev/null 2>&1; then
-    sips -s format png Assets/avalonia-logo.ico --out "${OUTPUT_DIR}/${PACKAGE_NAME}/clipboard.png" >/dev/null 2>&1 || true
-fi
+# Copy application icon
+cp Assets/clipboard.png "${OUTPUT_DIR}/${PACKAGE_NAME}/clipboard.png"
+
 
 # 3. Create .tar.gz archive
 echo "==> Creating ${ARCHIVE_NAME}..."
