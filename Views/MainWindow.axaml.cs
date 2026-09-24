@@ -37,11 +37,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var handle = TryGetPlatformHandle()?.Handle;
-            if (handle.HasValue && handle.Value != IntPtr.Zero)
-            {
-                MacNative.RemoveMinimizeAndMaximizeButtons(handle.Value);
-            }
+            PlatformService.Current.RemoveWindowDecorations(this);
         }
         catch { }
     }
@@ -59,21 +55,18 @@ public partial class MainWindow : Window
 
     private void OnRequestHide()
     {
-        Hide();
-        MacNative.HideAppAndDeactivate();
+        PlatformService.Current.HideAndDeactivateWindow(this);
     }
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         e.Cancel = true;
-        Hide();
-        MacNative.HideAppAndDeactivate();
+        PlatformService.Current.HideAndDeactivateWindow(this);
     }
 
     private void OnWindowDeactivated(object? sender, EventArgs e)
     {
-        Hide();
-        MacNative.HideAppAndDeactivate();
+        PlatformService.Current.HideAndDeactivateWindow(this);
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -112,8 +105,7 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.Escape)
         {
-            Hide();
-            MacNative.HideAppAndDeactivate();
+            PlatformService.Current.HideAndDeactivateWindow(this);
             e.Handled = true;
         }
     }

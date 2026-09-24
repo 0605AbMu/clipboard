@@ -12,7 +12,6 @@ namespace MacDesktopApp.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private const int MaxHistoryCount = 80;
-    private nint _lastChangeCount = -1;
     private string _lastCopiedText = string.Empty;
     private readonly DispatcherTimer _clipboardTimer;
 
@@ -56,7 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void CheckAccessibility()
     {
-        NeedsAccessibility = !MacNative.IsAccessibilityGranted();
+        NeedsAccessibility = !PlatformService.Current.IsAccessibilityGranted();
     }
 
     private void InitializeSampleData()
@@ -71,8 +70,7 @@ public partial class MainWindowViewModel : ViewModelBase
             ApplyFilter();
         }
 
-        var currentPb = MacNative.GetPasteboardString();
-        _lastChangeCount = MacNative.GetPasteboardChangeCount();
+        var currentPb = PlatformService.Current.GetClipboardText();
 
         if (!string.IsNullOrWhiteSpace(currentPb))
         {
@@ -84,22 +82,20 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         else if (AllItems.Count == 0)
         {
-            AddNewItem("Salom, bu macOS uchun ixcham plain-text clipboard menejeri.", true);
-            AddNewItem("Istalgan joyda matnni nusxalang (Cmd+C).", false);
+            AddNewItem("Salom, bu cross-platform plain-text clipboard menejeri.", true);
+            AddNewItem("Istalgan joyda matnni nusxalang (Ctrl+C / Cmd+C).", false);
             AddNewItem("dotnet run", false);
         }
     }
 
     private void OnCheckClipboard(object? sender, EventArgs e)
     {
-        var currentChangeCount = MacNative.GetPasteboardChangeCount();
-        if (currentChangeCount == _lastChangeCount || currentChangeCount < 0)
+        if (!PlatformService.Current.HasClipboardChanged())
         {
             return;
         }
 
-        _lastChangeCount = currentChangeCount;
-        var text = MacNative.GetPasteboardString();
+        var text = PlatformService.Current.GetClipboardText();
 
         if (string.IsNullOrWhiteSpace(text)) return;
         if (text == _lastCopiedText) return;
@@ -180,29 +176,27 @@ public partial class MainWindowViewModel : ViewModelBase
         if (target == null) return;
 
         _lastCopiedText = target.Content;
-        // 1. Set purely unformatted plain text to macOS pasteboard
-        MacNative.SetPasteboardString(target.Content);
-        _lastChangeCount = MacNative.GetPasteboardChangeCount();
+        // 1. Set purely unformatted plain text to clipboard
+        PlatformService.Current.SetClipboardText(target.Content);
 
         // 2. Hide window and return focus to active application
         RequestHideWindow?.Invoke();
 
         // 3. Auto paste
-        if (MacNative.IsAccessibilityGranted())
+        if (PlatformService.Current.IsAccessibilityGranted())
         {
-            MacNative.SimulatePaste();
+            PlatformService.Current.SimulatePaste();
         }
         else
         {
-            // Prompt user once to open accessibility settings if not yet enabled
-            MacNative.OpenAccessibilitySettings();
+            PlatformService.Current.OpenAccessibilitySettings();
         }
     }
 
     [RelayCommand]
     public void OpenSettings()
     {
-        MacNative.OpenAccessibilitySettings();
+        PlatformService.Current.OpenAccessibilitySettings();
     }
 
     [RelayCommand]

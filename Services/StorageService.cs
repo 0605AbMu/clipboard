@@ -9,11 +9,9 @@ namespace MacDesktopApp.Services;
 
 public static class StorageService
 {
-    private static readonly string AppDataDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "Library",
-        "Application Support",
-        "MacDesktopApp");
+    private static readonly string AppDataDir = OperatingSystem.IsMacOS()
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Clipboard")
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Clipboard");
 
     private static readonly string HistoryFilePath = Path.Combine(AppDataDir, "history.json");
 

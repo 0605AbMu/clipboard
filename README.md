@@ -1,53 +1,56 @@
-# macOS Ixcham Plain-Text Clipboard Manager (Auto-Paste)
+# Cross-Platform Plain-Text Clipboard Manager (macOS, Linux, Windows)
 
-Ushbu dastur Windows'dagi **Win + V** clipboard menejerining macOS uchun yaratilgan, **faqat toza matn (plain-text)** bilan ishlovchi, **avtomatik joylash (auto-paste)** imkoniyatiga ega, minimalistik va **macOS native toza interfeysiga** ega versiyasi.
-
----
-
-## 🔐 Auto-Paste uchun Ruxsat Berish (Accessibility)
-
-macOS xavfsizlik tizimi sababli, `dotnet run` orqali ishga tushirilganda macOS sozlamalarda ilovani qanday topish mumkin:
-
-### 1-usul: Terminal ga ruxsat berish (Eng osoni)
-Agar dasturni terminal orqali `dotnet run` qilib ishga tushirgan bo'lsangiz:
-1. **System Settings > Privacy & Security > Accessibility** ga kiring.
-2. Ro'yxatdagi **Terminal** (yoki **iTerm** / **VS Code**) ni **ON** (yoqilgan) qiling.
-3. Bo'ldi! Terminal ruxsat olgach, uning ichidagi dastur `Cmd + V` ni avtomatik bajara oladi.
-
-### 2-usul: `MacDesktopApp.app` ni ro'yxatga qo'shish (Drag & Drop)
-`/Desktop/test/` papkasida to'liq mustaqil **`MacDesktopApp.app`** ilovasi tayyorlandi:
-1. Dasturdagi **"Ruxsat berish"** tugmasini bosing (u Sozlamalar va Finder oynasini bir vaqtda ochadi).
-2. Finder'dagi **`MacDesktopApp.app`** ni sichqoncha bilan ushlab, **System Settings > Accessibility** ro'yxatiga tortib tashlang (Drag & Drop).
-3. Yoki pastdagi **`+` (Plus)** tugmasini bosib, `Desktop/test/MacDesktopApp.app` ni tanlang.
+Ushbu dastur Windows'dagi **Win + V** clipboard menejerining **macOS, Linux va Windows** operatsion tizimlari uchun yaratilgan, **faqat toza matn (plain-text)** bilan ishlovchi, **avtomatik joylash (auto-paste)** imkoniyatiga ega bo'lgan to'liq cross-platform talqini.
 
 ---
 
-## 🏃‍♂️ Ishga tushirish
+## 🚀 Tizimlar Bo'yicha Xususiyatlar
 
-Terminalda:
+| Xususiyat | 🍏 macOS | 🐧 Linux | 🪟 Windows |
+|---|---|---|---|
+| **Global Chaqirish** | `⌘ + ⇧ + V` / `⌘ + ⌥ + V` | `Ctrl + Shift + V` / `Alt + V` | `Ctrl + Shift + V` / `Alt + V` |
+| **Kuzatish Mexanizmi** | `NSPasteboard` `changeCount` | Avalonia `Clipboard` / `wl-paste` | Win32 `GetClipboardSequenceNumber` |
+| **Auto-Paste** | `CGEvent` (Maccy ketma-ketligi) | `wtype` (Wayland) / `xdotool` (X11) | Win32 `SendInput` (`Ctrl + V`) |
+| **Doimiy Xotira** | `~/Library/Application Support/Clipboard` | `~/.config/Clipboard` | `%APPDATA%\Clipboard` |
+| **Oyna Boshqaruvi** | Dockless (`LSUIElement`) | X11 / Wayland CSD | Win32 Borderless Tray App |
+| **Tarqatish Formati** | `.dmg` (Disk Image) | `.tar.gz` (.desktop bilan) | `.zip` (Portable `.exe`) |
 
+---
+
+## ⚡ Asosiy Imkoniyatlar
+
+1. **📄 Faqat Toza Matn (Pure Plain Text)**:
+   - Hech qanday HTML, RTF, rang yoki uslublarsiz toza matn olinadi va joylanadi.
+2. **📏 Ixcham Ro'yxat (Compact Rows)**:
+   - Har bir element bir qatorli (~28px) ixcham ko'rinishda.
+3. **⚡ Darhol Strelkalar bilan Harakatlanish (`↓ / ↑`)**:
+   - Oyna ochilishi bilanoq strelkalar orqali ro'yxat bo'yicha yuriladi.
+4. **🎯 Enter orqali Avtomatik Paste**:
+   - `Enter` bosilganda oyna yashirinadi va matn kursor turgan joyga darhol qo'yiladi.
+5. **📌 Qadash (Pinning)** va **🧹 Tozalash**:
+   - Muhim matnlarni qadab qo'yish va qadalmaganlarini bir zumda tozalash.
+
+---
+
+## 🏃‍♂️ Loyihani Yig'ish (Build)
+
+### Lokal Yig'ish:
+- **macOS DMG**: `./build-dmg.sh osx-arm64`
+- **Linux Tar.gz**: `./build-linux.sh linux-x64`
+- **Windows Zip**: `./build-windows.sh win-x64`
+
+### To'g'ridan-to'g'ri Ishga Tushirish:
 ```bash
-cd ~/Desktop/test
 dotnet run
 ```
 
-Yoki to'g'ridan-to'g'ri .app bundle sifatida:
-
-```bash
-open ~/Desktop/test/MacDesktopApp.app
-```
-
 ---
 
-## ⌨️ Boshqaruv
+## 📦 CI/CD va Avtomatik Chiqarish (Release)
 
-| Harakat | Vazifasi |
-|---|---|
-| **`Cmd + Shift + V`** | Oynani ochish / yashirish |
-| **`Cmd + Option + V`** | Muqobil chaqirish tugmasi |
-| **`↓` va `↑`** | Ro'yxatdagi elementlar bo'ylab yurish |
-| **`Enter` (yoki Bosish)** | **Oynani yopib, kursor turgan joyga matnni avtomatik paste qilish** |
-| **`Esc`** | Oynani yopish |
-| **📌** | Elementni qadash |
-| **✕** | Bitta elementni o'chirish |
-| **🧹 (Tepada)** | Qadalmagan barcha matnlarni tozalash |
+GitHub Actions orqali har safar yangi teg (masalan, `v1.1.0`) yuborilganda:
+1. `osx-arm64` va `osx-x64` uchun **macOS DMG**;
+2. `linux-x64` va `linux-arm64` uchun **Linux .tar.gz**;
+3. `win-x64` uchun **Windows .zip**;
+
+barcha platformalar uchun avtomatik yig'ilib, [GitHub Releases](https://github.com/0605AbMu/clipboard/releases) sahifasiga yuklanadi!

@@ -29,9 +29,6 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
-            // Run as background accessory app without Dock icon
-            MacNative.SetAsAccessoryApp();
-
             // Prevent app from quitting when MainWindow is hidden
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -42,15 +39,17 @@ public partial class App : Application
             };
             desktop.MainWindow = _mainWindow;
 
-            // Setup native macOS Menu Bar status icon
+            // Initialize cross-platform service
+            PlatformService.Current.Initialize(_mainWindow);
+
+            // Setup native Menu Bar / System Tray status icon
             SetupTrayIcon(desktop);
 
-            // Register global hotkeys (Cmd + Shift + V / Cmd + Option + V)
-            MacNative.RegisterGlobalHotkeys();
-            MacNative.HotKeyPressed += () =>
+            // Register global hotkeys across OS
+            PlatformService.Current.RegisterGlobalHotkey(() =>
             {
                 Dispatcher.UIThread.Post(ToggleWindow);
-            };
+            });
 
             // Initially show window with focus
             _mainWindow.Show();
@@ -68,7 +67,7 @@ public partial class App : Application
         {
             var menu = new NativeMenu();
 
-            var openItem = new NativeMenuItem("📋 Clipboard Tarixi (Cmd+Shift+V)");
+            var openItem = new NativeMenuItem("📋 Clipboard Tarixi");
             openItem.Click += (s, e) => ToggleWindow();
             menu.Add(openItem);
 
@@ -86,7 +85,7 @@ public partial class App : Application
 
             var trayIcon = new TrayIcon
             {
-                ToolTipText = "macOS Clipboard Menejeri (Cmd+Shift+V)",
+                ToolTipText = "Clipboard Menejeri",
                 Menu = menu,
                 IsVisible = true
             };
@@ -110,11 +109,15 @@ public partial class App : Application
 
         if (_mainWindow.IsVisible)
         {
-            _mainWindow.Hide();
+            PlatformService.Current.HideAndDeactivateWindow(_mainWindow);
         }
         else
         {
-            MacNative.ActivateApp();
+            if (OperatingSystem.IsMacOS())
+            {
+                MacNative.ActivateApp();
+            }
+
             _mainWindow.Show();
             _mainWindow.Activate();
             _mainWindow.Focus();
