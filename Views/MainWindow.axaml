@@ -1,0 +1,214 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MacDesktopApp.ViewModels"
+        xmlns:models="using:MacDesktopApp.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="440"
+        x:Class="MacDesktopApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Clipboard"
+        Width="380" Height="440"
+        MinWidth="320" MinHeight="340"
+        MaxWidth="480" MaxHeight="650"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen"
+        TransparencyLevelHint="Mica, AcrylicBlur"
+        Background="Transparent"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="-1">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Window.Styles>
+        <!-- Native macOS List Item Styling -->
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="2,1" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- macOS Native Selection Color -->
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+        </Style>
+        <Style Selector="ListBoxItem:selected TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ListBoxItem:selected Button TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Small Icon Buttons -->
+        <Style Selector="Button.rowAction">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.rowAction:pointerover">
+            <Setter Property="Background" Value="#33888888" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <!-- macOS Native Frosted Glass (Vibrancy) -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    BackgroundSource="Digger"
+                    TintColor="{DynamicResource SystemAltHighColor}"
+                    TintOpacity="0.88"
+                    MaterialOpacity="0.82" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <Grid RowDefinitions="Auto, Auto, *" Margin="14,32,14,14">
+
+            <!-- COMPACT HEADER WITH TITLE AND CLEAR ICON BUTTON -->
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="📋" FontSize="14" VerticalAlignment="Center" />
+                    <TextBlock Text="Clipboard"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Clear All Icon Button -->
+                <Button Grid.Column="1"
+                        Classes="rowAction"
+                        Command="{Binding ClearAllCommand}"
+                        ToolTip.Tip="Tarixni tozalash"
+                        Padding="5,3">
+                    <TextBlock Text="🧹" FontSize="13" />
+                </Button>
+            </Grid>
+
+            <!-- NATIVE MACOS SEARCH & PERMISSION BANNER -->
+            <StackPanel Grid.Row="1" Margin="0,0,0,6">
+                <!-- Accessibility Warning Banner -->
+                <Border IsVisible="{Binding NeedsAccessibility}"
+                        Background="#25E67E22"
+                        BorderBrush="#88E67E22"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="6,3"
+                        Margin="0,0,0,6">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Grid.Column="0"
+                                   Text="⚠️ Auto-paste uchun ruxsat bering"
+                                   FontSize="10"
+                                   FontWeight="Medium"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1"
+                                Content="Ruxsat berish"
+                                Command="{Binding OpenSettingsCommand}"
+                                Padding="6,2"
+                                CornerRadius="4"
+                                FontSize="10" />
+                    </Grid>
+                </Border>
+
+                <TextBox x:Name="SearchInput"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         Watermark="🔍 Qidirish..."
+                         CornerRadius="6"
+                         Height="28"
+                         Padding="8,4"
+                         FontSize="12"
+                         VerticalContentAlignment="Center" />
+            </StackPanel>
+
+            <!-- COMPACT NATIVE LIST -->
+            <Border Grid.Row="2">
+                <Panel>
+                    <!-- Empty State -->
+                    <StackPanel IsVisible="{Binding IsEmpty}"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                Spacing="4">
+                        <TextBlock Text="Matn yo'q"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Cmd+C orqali nusxalang"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Items ListBox -->
+                    <ListBox x:Name="ItemsListBox"
+                             ItemsSource="{Binding FilteredItems}"
+                             SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                             IsVisible="{Binding !IsEmpty}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="models:ClipboardItem">
+                                <Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+                                    <!-- Index / Pin Marker -->
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding PinIcon}"
+                                               FontSize="11"
+                                               Width="18"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,6,0" />
+
+                                    <!-- Single Line Plain Text Preview -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding SingleLineText}"
+                                               FontSize="12"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center"
+                                               FontFamily="-apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, sans-serif" />
+
+                                    <!-- Right-hand Info & Actions -->
+                                    <StackPanel Grid.Column="2"
+                                                Orientation="Horizontal"
+                                                Spacing="4"
+                                                VerticalAlignment="Center"
+                                                Margin="6,0,0,0">
+                                        <TextBlock Text="{Binding TimeDisplay}"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                   VerticalAlignment="Center" />
+
+                                        <!-- Pin Button -->
+                                        <Button Classes="rowAction"
+                                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).TogglePinCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="{Binding PinText}">
+                                            <TextBlock Text="📌" FontSize="10" />
+                                        </Button>
+
+                                        <!-- Delete Button -->
+                                        <Button Classes="rowAction"
+                                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteItemCommand}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip.Tip="O'chirish">
+                                            <TextBlock Text="✕" FontSize="10" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Panel>
+            </Border>
+
+        </Grid>
+    </Panel>
+
+</Window>
