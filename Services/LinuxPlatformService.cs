@@ -252,7 +252,7 @@ public class LinuxPlatformService : IPlatformService
                     Directory.CreateDirectory(dir);
                 }
 
-                var execPath = Environment.ProcessPath ?? "MacDesktopApp";
+                var execPath = File.Exists("/usr/bin/clipboard") ? "/usr/bin/clipboard" : (Environment.ProcessPath ?? "MacDesktopApp");
                 var content = $@"[Desktop Entry]
 Type=Application
 Version=1.0

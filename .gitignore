@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 *.app/
 publish/
 dist-*/
+*.deb
+*.tar.gz
+*.zip

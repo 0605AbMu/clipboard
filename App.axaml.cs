@@ -101,6 +101,29 @@ public partial class App : Application
             clearItem.Click += (s, e) => _viewModel?.ClearAll();
             menu.Add(clearItem);
 
+            var updateItem = new NativeMenuItem("🔄 Yangilanishlarni tekshirish");
+            updateItem.Click += (s, e) =>
+            {
+                try
+                {
+                    const string releaseUrl = "https://github.com/0605AbMu/clipboard/releases";
+                    if (OperatingSystem.IsWindows())
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(releaseUrl) { UseShellExecute = true });
+                    }
+                    else if (OperatingSystem.IsMacOS())
+                    {
+                        System.Diagnostics.Process.Start("open", releaseUrl);
+                    }
+                    else
+                    {
+                        System.Diagnostics.Process.Start("xdg-open", releaseUrl);
+                    }
+                }
+                catch { }
+            };
+            menu.Add(updateItem);
+
             menu.Add(new NativeMenuItemSeparator());
 
             var exitItem = new NativeMenuItem("❌ Chiqish");
