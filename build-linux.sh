@@ -2,7 +2,7 @@
 set -e
 
 ARCH="${1:-linux-x64}"
-VERSION="${2:-1.0.0}"
+VERSION="${2:-2.0.0}"
 APP_NAME="MacDesktopApp"
 PACKAGE_NAME="Clipboard-${VERSION}-${ARCH}"
 OUTPUT_DIR="dist-${ARCH}"
@@ -51,7 +51,7 @@ case "${ARCH}" in
         DEB_ARCH="armhf"
         ;;
     *)
-        DEB_ARCH="amd64"
+        DEB_ARCH="all"
         ;;
 esac
 
@@ -64,41 +64,25 @@ rm -rf "${DEB_STAGE}" "${DEB_NAME}"
 
 # Create Debian directory hierarchy
 mkdir -p "${DEB_STAGE}/DEBIAN"
-mkdir -p "${DEB_STAGE}/opt/clipboard"
-mkdir -p "${DEB_STAGE}/usr/bin"
-mkdir -p "${DEB_STAGE}/usr/share/applications"
-mkdir -p "${DEB_STAGE}/usr/share/pixmaps"
+mkdir -p "${DEB_STAGE}/usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu"
+mkdir -p "${DEB_STAGE}/usr/share/glib-2.0/schemas"
 mkdir -p "${DEB_STAGE}/usr/share/icons/hicolor/512x512/apps"
+mkdir -p "${DEB_STAGE}/usr/share/pixmaps"
 
-# Copy published application files to /opt/clipboard
-cp -r "${OUTPUT_DIR}/${PACKAGE_NAME}/"* "${DEB_STAGE}/opt/clipboard/"
-# Remove redundant portable desktop/png from /opt/clipboard if present
-rm -f "${DEB_STAGE}/opt/clipboard/clipboard.desktop"
-rm -f "${DEB_STAGE}/opt/clipboard/clipboard.png"
+# Compile extension schema before packaging
+if which glib-compile-schemas >/dev/null 2>&1; then
+    glib-compile-schemas extensions/clipboard-manager@0605AbMu/schemas/
+fi
 
-# Symlink executable to /usr/bin/clipboard
-ln -s /opt/clipboard/${APP_NAME} "${DEB_STAGE}/usr/bin/clipboard"
+# Copy Native GNOME Shell Extension files
+cp -r extensions/clipboard-manager@0605AbMu/* "${DEB_STAGE}/usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu/"
+
+# Copy system-wide GSettings schema
+cp extensions/clipboard-manager@0605AbMu/schemas/*.xml "${DEB_STAGE}/usr/share/glib-2.0/schemas/"
 
 # Install application icon
 cp Assets/clipboard.png "${DEB_STAGE}/usr/share/pixmaps/clipboard.png"
 cp Assets/clipboard.png "${DEB_STAGE}/usr/share/icons/hicolor/512x512/apps/clipboard.png"
-
-# Install system desktop entry
-cat << EOF > "${DEB_STAGE}/usr/share/applications/clipboard.desktop"
-[Desktop Entry]
-Type=Application
-Version=1.0
-Name=Clipboard
-GenericName=Clipboard Manager
-Comment=Minimalist Plain-Text Clipboard Manager
-Exec=/usr/bin/clipboard
-Icon=clipboard
-Terminal=false
-Categories=Utility;Application;
-StartupWMClass=${APP_NAME}
-Keywords=clipboard;manager;paste;copy;history;
-StartupNotify=false
-EOF
 
 # Calculate Installed-Size in KiB
 INSTALLED_SIZE=$(du -sk "${DEB_STAGE}" | cut -f1)
@@ -107,64 +91,163 @@ INSTALLED_SIZE=$(du -sk "${DEB_STAGE}" | cut -f1)
 cat << EOF > "${DEB_STAGE}/DEBIAN/control"
 Package: clipboard
 Version: ${DEB_VERSION}
-Section: utils
+Section: gnome
 Priority: optional
 Architecture: ${DEB_ARCH}
 Maintainer: Abdumannon <info@clipboard.app>
 Installed-Size: ${INSTALLED_SIZE}
-Depends: libc6 (>= 2.34), libfontconfig1, libx11-6, libice6, libsm6
-Recommends: wl-clipboard, xclip, xdotool
+Depends: gnome-shell (>= 45)
+Replaces: clipboard (<< ${DEB_VERSION})
+Provides: clipboard
 Homepage: https://github.com/0605AbMu/clipboard
-Description: Minimalist Plain-Text Clipboard Manager
- High-performance, minimalist plain-text clipboard manager with auto-paste,
- pinning, and system integration for Ubuntu / Linux desktop.
+Description: Native Plain-Text Clipboard Manager GNOME Shell Extension
+ High-performance, minimalist plain-text clipboard manager extension for GNOME.
+ Runs natively inside GNOME Shell with 0ms virtual paste, history search,
+ and custom hotkeys (Super+V, Ctrl+Shift+V).
 EOF
 
-# Create DEBIAN/postinst
+# Create DEBIAN/preinst (Completely wipes legacy standalone app and processes)
+cat << 'EOF' > "${DEB_STAGE}/DEBIAN/preinst"
+#!/bin/sh
+set -e
+
+echo "==> Cleaning up any legacy clipboard versions..."
+
+# 1. Kill any running legacy standalone app processes
+pkill -9 -f "/opt/clipboard" 2>/dev/null || true
+pkill -9 -f "/usr/bin/clipboard" 2>/dev/null || true
+pkill -x "MacDesktopApp" 2>/dev/null || true
+pkill -x "clipboard" 2>/dev/null || true
+
+# 2. Remove legacy app binaries and desktop files
+rm -rf /opt/clipboard
+rm -f /usr/bin/clipboard
+rm -f /usr/share/applications/clipboard.desktop
+rm -rf /usr/share/gnome-shell/extensions/clipboard-bridge@0605AbMu
+
+# 3. Clean user-level legacy autostart and old bridge extensions for all human users
+for udir in /home/*; do
+    if [ -d "$udir" ]; then
+        rm -f "$udir/.config/autostart/clipboard.desktop"
+        rm -rf "$udir/.local/share/gnome-shell/extensions/clipboard-bridge@0605AbMu"
+    fi
+done
+
+exit 0
+EOF
+chmod 755 "${DEB_STAGE}/DEBIAN/preinst"
+
+# Create DEBIAN/postinst (Activates native extension and updates caches)
 cat << 'EOF' > "${DEB_STAGE}/DEBIAN/postinst"
 #!/bin/sh
 set -e
 
 if [ "$1" = "configure" ]; then
-    if which update-desktop-database >/dev/null 2>&1; then
-        update-desktop-database -q /usr/share/applications || true
+    # 1. Recompile GSettings schemas
+    if which glib-compile-schemas >/dev/null 2>&1; then
+        glib-compile-schemas /usr/share/glib-2.0/schemas || true
     fi
+
+    # 2. Update icon caches
     if which gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
+
+    # 3. Clean up desktop cache in case legacy clipboard.desktop was registered
+    if which update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database -q /usr/share/applications || true
+    fi
+
+    # 4. Sync extension to all existing user profiles and activate in GNOME Shell
+    for udir in /home/*; do
+        uname=$(basename "$udir")
+        if id -u "$uname" >/dev/null 2>&1; then
+            # Sync to user extensions directory for instant detection
+            user_ext="$udir/.local/share/gnome-shell/extensions/clipboard-manager@0605AbMu"
+            mkdir -p "$user_ext"
+            cp -rf /usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu/* "$user_ext/"
+            chown -R "$uname:$uname" "$user_ext" 2>/dev/null || true
+
+            if which glib-compile-schemas >/dev/null 2>&1; then
+                glib-compile-schemas "$user_ext/schemas" 2>/dev/null || true
+            fi
+
+            # Clean up old custom keybindings and add extension to enabled-extensions
+            uid=$(id -u "$uname" 2>/dev/null || true)
+            if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
+                su - "$uname" -c "
+                    export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus
+                    # Clear legacy media-keys
+                    gsettings reset-recursively org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle/ 2>/dev/null || true
+                    gsettings reset-recursively org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle-alt/ 2>/dev/null || true
+                    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \"@as []\" 2>/dev/null || true
+
+                    # Free up Super+V from GNOME Shell built-in message tray shortcut
+                    current_tray=\$(gsettings get org.gnome.shell.keybindings toggle-message-tray 2>/dev/null || echo '')
+                    if echo \"\$current_tray\" | grep -q \"'<Super>v'\"; then
+                        gsettings set org.gnome.shell.keybindings toggle-message-tray \"['<Super>m']\" 2>/dev/null || true
+                    fi
+
+                    # Add extension to enabled-extensions
+                    current=\$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || echo '')
+                    if [ -n \"\$current\" ] && ! echo \"\$current\" | grep -q 'clipboard-manager@0605AbMu'; then
+                        new_list=\$(echo \"\$current\" | sed \"s/]/, 'clipboard-manager@0605AbMu']/\")
+                        gsettings set org.gnome.shell enabled-extensions \"\$new_list\" 2>/dev/null || true
+                    fi
+                " 2>/dev/null || true
+            fi
+        fi
+    done
+
+    echo "==> Clipboard Manager GNOME Extension installed and activated successfully!"
 fi
 
 exit 0
 EOF
 chmod 755 "${DEB_STAGE}/DEBIAN/postinst"
 
-# Create DEBIAN/prerm (stops app cleanly on upgrade or uninstall)
+# Create DEBIAN/prerm (Stops any running instances)
 cat << 'EOF' > "${DEB_STAGE}/DEBIAN/prerm"
 #!/bin/sh
 set -e
 
-if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
-    pkill -f "/opt/clipboard/MacDesktopApp" 2>/dev/null || true
-    pkill -x "MacDesktopApp" 2>/dev/null || true
-    pkill -x "clipboard" 2>/dev/null || true
-fi
+pkill -9 -f "/opt/clipboard" 2>/dev/null || true
+pkill -9 -f "/usr/bin/clipboard" 2>/dev/null || true
+pkill -x "MacDesktopApp" 2>/dev/null || true
+pkill -x "clipboard" 2>/dev/null || true
 
 exit 0
 EOF
 chmod 755 "${DEB_STAGE}/DEBIAN/prerm"
 
-# Create DEBIAN/postrm (refreshes caches on remove/purge)
+# Create DEBIAN/postrm (Clean up on uninstall/purge)
 cat << 'EOF' > "${DEB_STAGE}/DEBIAN/postrm"
 #!/bin/sh
 set -e
 
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-    if which update-desktop-database >/dev/null 2>&1; then
-        update-desktop-database -q /usr/share/applications || true
+    rm -rf /usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu
+    rm -f /usr/share/glib-2.0/schemas/org.gnome.shell.extensions.clipboard-manager.gschema.xml
+
+    if which glib-compile-schemas >/dev/null 2>&1; then
+        glib-compile-schemas /usr/share/glib-2.0/schemas || true
     fi
+
     if which gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
+
+    # Restore default message tray keybinding
+    for udir in /home/*; do
+        uname=$(basename "$udir")
+        uid=$(id -u "$uname" 2>/dev/null || true)
+        if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
+            su - "$uname" -c "
+                export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus
+                gsettings reset org.gnome.shell.keybindings toggle-message-tray 2>/dev/null || true
+            " 2>/dev/null || true
+        fi
+    done
 fi
 
 exit 0
@@ -173,11 +256,8 @@ chmod 755 "${DEB_STAGE}/DEBIAN/postrm"
 
 # Fix permissions
 find "${DEB_STAGE}" -type d -exec chmod 755 {} +
-find "${DEB_STAGE}/opt/clipboard" -type f -exec chmod 644 {} +
-chmod 755 "${DEB_STAGE}/opt/clipboard/${APP_NAME}"
-chmod 755 "${DEB_STAGE}/opt/clipboard/createdump" 2>/dev/null || true
-find "${DEB_STAGE}/opt/clipboard" -name "*.so" -exec chmod 755 {} + 2>/dev/null || true
-chmod 644 "${DEB_STAGE}/usr/share/applications/clipboard.desktop"
+find "${DEB_STAGE}/usr/share/gnome-shell/extensions" -type f -exec chmod 644 {} +
+find "${DEB_STAGE}/usr/share/glib-2.0/schemas" -type f -exec chmod 644 {} +
 chmod 644 "${DEB_STAGE}/usr/share/pixmaps/clipboard.png"
 chmod 644 "${DEB_STAGE}/usr/share/icons/hicolor/512x512/apps/clipboard.png"
 chmod 644 "${DEB_STAGE}/DEBIAN/control"

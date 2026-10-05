@@ -1,0 +1,191 @@
+.clipboard-modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.32);
+}
+
+.clipboard-popup-box {
+    background-color: #242424;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 12px 14px 10px 14px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+}
+
+/* Header: Icon, Title, Clear All */
+.clipboard-header-box {
+    margin-bottom: 8px;
+    padding: 0 2px;
+}
+
+.clipboard-title-box {
+    spacing: 6px;
+}
+
+.clipboard-app-icon {
+    font-size: 14px;
+    margin-right: 6px;
+}
+
+.clipboard-title-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.clipboard-header-actions {
+    spacing: 4px;
+}
+
+.clipboard-header-btn {
+    padding: 4px 6px;
+    border-radius: 4px;
+    background-color: transparent;
+    transition-duration: 100ms;
+}
+
+.clipboard-header-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.clipboard-header-btn-icon {
+    font-size: 13px;
+}
+
+/* Search Box */
+.clipboard-search-box {
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-bottom: 8px;
+}
+
+.clipboard-search-entry {
+    color: #ffffff;
+    font-size: 12px;
+    border: none;
+    background-color: transparent;
+    padding: 4px 2px;
+}
+
+.clipboard-search-entry:focus {
+    border: none;
+    box-shadow: none;
+}
+
+/* Scroll View & List */
+.clipboard-scroll-view {
+    max-height: 340px;
+    min-height: 80px;
+}
+
+.clipboard-items-container {
+    padding: 0;
+}
+
+.clipboard-item-row {
+    padding: 4px 8px;
+    margin: 1px 0;
+    min-height: 28px;
+    border-radius: 6px;
+    color: #dedede;
+    transition-duration: 80ms;
+}
+
+.clipboard-item-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.clipboard-item-row.selected {
+    background-color: #3584e4;
+    color: #ffffff;
+}
+
+.clipboard-pin-indicator {
+    font-size: 11px;
+    width: 18px;
+    text-align: center;
+    margin-right: 6px;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.clipboard-pin-indicator.pinned {
+    color: #ffffff;
+}
+
+.clipboard-item-row.selected .clipboard-pin-indicator {
+    color: #ffffff;
+}
+
+.clipboard-item-text {
+    font-size: 12px;
+    margin-right: 8px;
+}
+
+.clipboard-item-right-box {
+    spacing: 4px;
+    margin-left: 6px;
+}
+
+.clipboard-item-time {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-right: 4px;
+}
+
+.clipboard-item-row.selected .clipboard-item-time {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Row Action Buttons (Pin, Delete) */
+.clipboard-row-btn {
+    padding: 2px 4px;
+    border-radius: 4px;
+    background-color: transparent;
+    transition-duration: 80ms;
+}
+
+.clipboard-row-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.clipboard-row-btn-text {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.clipboard-item-row.selected .clipboard-row-btn-text {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.clipboard-del-btn:hover .clipboard-row-btn-text {
+    color: #ff5c5c;
+}
+
+/* Empty State */
+.clipboard-empty-box {
+    padding: 36px 16px;
+    spacing: 4px;
+}
+
+.clipboard-empty-title {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.clipboard-empty-subtitle {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Footer */
+.clipboard-footer {
+    padding-top: 6px;
+    margin-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.clipboard-footer-hint {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+}

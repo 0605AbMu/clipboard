@@ -60,8 +60,15 @@
     </Window.Styles>
 
     <Panel>
+        <!-- Background fallback for platforms without native Acrylic (e.g. Linux) -->
+        <Border CornerRadius="10"
+                Background="{DynamicResource SystemRegionBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                BorderThickness="1"
+                BoxShadow="0 8 28 0 #33000000" />
+
         <!-- macOS Native Frosted Glass (Vibrancy) -->
-        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+        <ExperimentalAcrylicBorder x:Name="MacAcrylicBorder" IsHitTestVisible="False" CornerRadius="10">
             <ExperimentalAcrylicBorder.Material>
                 <ExperimentalAcrylicMaterial
                     BackgroundSource="Digger"
@@ -71,7 +78,7 @@
             </ExperimentalAcrylicBorder.Material>
         </ExperimentalAcrylicBorder>
 
-        <Grid RowDefinitions="Auto, Auto, *" Margin="14,32,14,14">
+        <Grid RowDefinitions="Auto, Auto, *, Auto" Margin="14,32,14,14">
 
             <!-- COMPACT HEADER WITH TITLE AND CLEAR ICON BUTTON -->
             <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
@@ -148,7 +155,7 @@
                                    FontSize="12"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Text="Cmd+C orqali nusxalang"
+                        <TextBlock Text="{Binding CopyShortcutHint}"
                                    FontSize="11"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                                    HorizontalAlignment="Center" />
@@ -215,6 +222,18 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Panel>
+            </Border>
+
+            <!-- FOOTER KEY HINTS -->
+            <Border Grid.Row="3"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                    BorderThickness="0,1,0,0"
+                    Padding="0,6,0,0"
+                    Margin="0,6,0,0">
+                <TextBlock Text="↑↓ Tanlash   ↵ Qo'yish   Del O'chirish   Esc Yopish"
+                           FontSize="10"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           HorizontalAlignment="Center" />
             </Border>
 
         </Grid>

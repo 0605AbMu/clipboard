@@ -1,0 +1,13 @@
+{
+  "name": "Clipboard Bridge",
+  "description": "Native Wayland paste bridge for Clipboard manager",
+  "uuid": "clipboard-bridge@0605AbMu",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48"
+  ],
+  "url": "https://github.com/0605AbMu/clipboard",
+  "version": 1
+}

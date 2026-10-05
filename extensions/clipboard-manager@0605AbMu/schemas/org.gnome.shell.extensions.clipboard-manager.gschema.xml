@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-shell-extensions">
+  <schema id="org.gnome.shell.extensions.clipboard-manager" path="/org/gnome/shell/extensions/clipboard-manager/">
+    <key name="toggle-shortcut" type="as">
+      <default>['&lt;Super&gt;v', '&lt;Control&gt;&lt;Shift&gt;v']</default>
+      <summary>Toggle Clipboard Manager shortcut</summary>
+      <description>Keybinding to show or hide the clipboard search overlay</description>
+    </key>
+    <key name="history-limit" type="i">
+      <default>100</default>
+      <summary>Max items in history</summary>
+      <description>Maximum number of text items retained in clipboard history</description>
+    </key>
+    <key name="auto-paste" type="b">
+      <default>true</default>
+      <summary>Auto-paste on select</summary>
+      <description>Whether to automatically paste the selected item into the active window</description>
+    </key>
+    <key name="show-indicator" type="b">
+      <default>true</default>
+      <summary>Show top panel indicator</summary>
+      <description>Whether to show a status indicator in the top panel</description>
+    </key>
+  </schema>
+</schemalist>

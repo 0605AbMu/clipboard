@@ -1,0 +1,14 @@
+{
+  "name": "Clipboard",
+  "description": "Minimalist, high-performance native plain-text clipboard manager for GNOME",
+  "uuid": "clipboard-manager@0605AbMu",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48"
+  ],
+  "settings-schema": "org.gnome.shell.extensions.clipboard-manager",
+  "url": "https://github.com/0605AbMu/clipboard",
+  "version": 1
+}

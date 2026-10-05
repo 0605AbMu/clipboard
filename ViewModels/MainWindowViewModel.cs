@@ -43,6 +43,10 @@ public partial class MainWindowViewModel : ViewModelBase
         ? "Avtomatik ishga tushish: Yoqilgan (O'chirish uchun bosing)"
         : "Avtomatik ishga tushish: O'chirilgan (Yoqish uchun bosing)";
 
+    public string CopyShortcutHint => OperatingSystem.IsMacOS()
+        ? "Cmd+C orqali nusxalang"
+        : "Ctrl+C orqali nusxalang";
+
     public ObservableCollection<ClipboardItem> AllItems { get; } = new();
     public ObservableCollection<ClipboardItem> FilteredItems { get; } = new();
 
@@ -58,12 +62,22 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _clipboardTimer = new DispatcherTimer
         {
-            Interval = TimeSpan.FromMilliseconds(200)
+            Interval = TimeSpan.FromMilliseconds(1000)
         };
         _clipboardTimer.Tick += OnCheckClipboard;
         _clipboardTimer.Start();
 
         UpdateCounts();
+    }
+
+    public void RefreshClipboard()
+    {
+        var text = PlatformService.Current.GetClipboardText();
+        if (string.IsNullOrWhiteSpace(text)) return;
+        if (text == _lastCopiedText) return;
+
+        _lastCopiedText = text;
+        AddNewItem(text, false);
     }
 
     public void CheckAccessibility()

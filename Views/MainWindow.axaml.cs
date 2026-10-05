@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -21,6 +22,16 @@ public partial class MainWindow : Window
         // Tunnel strategy intercepts Up, Down, Enter, Esc before any child control (like TextBox) consumes them
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
 
+        if (OperatingSystem.IsLinux())
+        {
+            Topmost = false;
+            TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent, WindowTransparencyLevel.None };
+            if (MacAcrylicBorder != null)
+            {
+                MacAcrylicBorder.IsVisible = false;
+            }
+        }
+
         if (ItemsListBox != null)
         {
             ItemsListBox.Tapped += OnListBoxTapped;
@@ -37,6 +48,10 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (OperatingSystem.IsLinux() && MacAcrylicBorder != null)
+            {
+                MacAcrylicBorder.IsVisible = false;
+            }
             PlatformService.Current.RemoveWindowDecorations(this);
         }
         catch { }
@@ -58,6 +73,8 @@ public partial class MainWindow : Window
         PlatformService.Current.HideAndDeactivateWindow(this);
     }
 
+    private DateTime _lastShownTime = DateTime.MinValue;
+
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
         e.Cancel = true;
@@ -66,12 +83,63 @@ public partial class MainWindow : Window
 
     private void OnWindowDeactivated(object? sender, EventArgs e)
     {
+        // Prevent accidental immediate hide during window mapping/activation (< 350ms)
+        if ((DateTime.UtcNow - _lastShownTime).TotalMilliseconds < 350)
+        {
+            return;
+        }
+
         PlatformService.Current.HideAndDeactivateWindow(this);
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm) return;
+
+        // Number shortcuts: Alt+1..9 or Ctrl+1..9
+        if (e.Key >= Key.D1 && e.Key <= Key.D9 && 
+            (e.KeyModifiers.HasFlag(KeyModifiers.Control) || e.KeyModifiers.HasFlag(KeyModifiers.Alt)))
+        {
+            int index = (int)(e.Key - Key.D1);
+            if (index < vm.FilteredItems.Count)
+            {
+                vm.SelectAndCopy(vm.FilteredItems[index]);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Pin/Unpin shortcut: Ctrl+P
+        if (e.Key == Key.P && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            if (vm.SelectedItem != null)
+            {
+                vm.TogglePin(vm.SelectedItem);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Delete shortcut: Ctrl+Delete or Ctrl+D or Delete when SearchInput is empty
+        if ((e.Key == Key.D && e.KeyModifiers.HasFlag(KeyModifiers.Control)) ||
+            (e.Key == Key.Delete && (e.KeyModifiers.HasFlag(KeyModifiers.Control) || string.IsNullOrEmpty(vm.SearchText))))
+        {
+            if (vm.SelectedItem != null)
+            {
+                vm.DeleteItem(vm.SelectedItem);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        // Window toggle/close shortcut while focused: Ctrl+Shift+V or Alt+V
+        if ((e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.KeyModifiers.HasFlag(KeyModifiers.Shift)) ||
+            (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Alt)))
+        {
+            PlatformService.Current.HideAndDeactivateWindow(this);
+            e.Handled = true;
+            return;
+        }
 
         if (e.Key == Key.Down)
         {
@@ -95,17 +163,47 @@ public partial class MainWindow : Window
             }
             e.Handled = true;
         }
+        else if (e.Key == Key.PageDown)
+        {
+            if (vm.FilteredItems.Count > 0)
+            {
+                int currentIndex = vm.SelectedItem != null ? vm.FilteredItems.IndexOf(vm.SelectedItem) : 0;
+                int nextIndex = Math.Min(currentIndex + 5, vm.FilteredItems.Count - 1);
+                vm.SelectedItem = vm.FilteredItems[nextIndex];
+                ItemsListBox?.ScrollIntoView(vm.SelectedItem);
+            }
+            e.Handled = true;
+        }
+        else if (e.Key == Key.PageUp)
+        {
+            if (vm.FilteredItems.Count > 0)
+            {
+                int currentIndex = vm.SelectedItem != null ? vm.FilteredItems.IndexOf(vm.SelectedItem) : 0;
+                int prevIndex = Math.Max(currentIndex - 5, 0);
+                vm.SelectedItem = vm.FilteredItems[prevIndex];
+                ItemsListBox?.ScrollIntoView(vm.SelectedItem);
+            }
+            e.Handled = true;
+        }
         else if (e.Key == Key.Enter)
         {
-            if (vm.SelectedItem != null)
+            var item = vm.SelectedItem ?? vm.FilteredItems.FirstOrDefault();
+            if (item != null)
             {
-                vm.SelectAndCopy(vm.SelectedItem);
+                vm.SelectAndCopy(item);
             }
             e.Handled = true;
         }
         else if (e.Key == Key.Escape)
         {
-            PlatformService.Current.HideAndDeactivateWindow(this);
+            if (!string.IsNullOrEmpty(vm.SearchText))
+            {
+                vm.SearchText = string.Empty;
+            }
+            else
+            {
+                PlatformService.Current.HideAndDeactivateWindow(this);
+            }
             e.Handled = true;
         }
     }
@@ -117,18 +215,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (DataContext is MainWindowViewModel vm && vm.SelectedItem != null)
+        if (DataContext is MainWindowViewModel vm)
         {
-            vm.SelectAndCopy(vm.SelectedItem);
+            var item = vm.SelectedItem ?? vm.FilteredItems.FirstOrDefault();
+            if (item != null)
+            {
+                vm.SelectAndCopy(item);
+            }
         }
     }
 
     public void FocusAndPrepare()
     {
+        _lastShownTime = DateTime.UtcNow;
         ApplyNativeWindowStyle();
 
         if (DataContext is MainWindowViewModel vm)
         {
+            vm.RefreshClipboard();
             vm.CheckAccessibility();
             if (vm.SelectedItem == null && vm.FilteredItems.Count > 0)
             {

@@ -15,6 +15,8 @@ namespace MacDesktopApp;
 
 public partial class App : Application
 {
+    public static App? Instance { get; private set; }
+    public static string StartupCommand { get; set; } = "toggle";
     private MainWindow? _mainWindow;
     private MainWindowViewModel? _viewModel;
 
@@ -25,6 +27,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        Instance = this;
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             DisableAvaloniaDataAnnotationValidation();
@@ -51,11 +54,11 @@ public partial class App : Application
                 Dispatcher.UIThread.Post(ToggleWindow);
             });
 
-            // Initially show window with focus
-            _mainWindow.Show();
-            _mainWindow.Activate();
-            _mainWindow.Focus();
-            _mainWindow.FocusAndPrepare();
+            // Only show window initially if not started in background
+            if (StartupCommand != "hide" && StartupCommand != "background" && StartupCommand != "autostart")
+            {
+                ShowWindow();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -136,6 +139,7 @@ public partial class App : Application
                 Menu = menu,
                 IsVisible = true
             };
+            trayIcon.Clicked += (s, e) => Dispatcher.UIThread.Post(ToggleWindow);
 
             try
             {
@@ -150,25 +154,42 @@ public partial class App : Application
         catch { }
     }
 
+    public void ShowWindow()
+    {
+        if (_mainWindow == null) return;
+
+        if (OperatingSystem.IsMacOS())
+        {
+            MacNative.ActivateApp();
+        }
+
+        _mainWindow.WindowState = WindowState.Normal;
+        _mainWindow.Show();
+        if (!OperatingSystem.IsLinux())
+        {
+            _mainWindow.Activate();
+        }
+        _mainWindow.Focus();
+        _mainWindow.FocusAndPrepare();
+    }
+
+    public void HideWindow()
+    {
+        if (_mainWindow == null) return;
+        PlatformService.Current.HideAndDeactivateWindow(_mainWindow);
+    }
+
     public void ToggleWindow()
     {
         if (_mainWindow == null) return;
 
         if (_mainWindow.IsVisible)
         {
-            PlatformService.Current.HideAndDeactivateWindow(_mainWindow);
+            HideWindow();
         }
         else
         {
-            if (OperatingSystem.IsMacOS())
-            {
-                MacNative.ActivateApp();
-            }
-
-            _mainWindow.Show();
-            _mainWindow.Activate();
-            _mainWindow.Focus();
-            _mainWindow.FocusAndPrepare();
+            ShowWindow();
         }
     }
 
