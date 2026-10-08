@@ -2,6 +2,8 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 
 const ClipboardBridgeIface = `
 <node>
@@ -36,6 +38,57 @@ export default class ClipboardBridgeExtension extends Extension {
         console.log('[ClipboardBridge] Extension disabled');
     }
 
+    _isTerminalWindow(win) {
+        if (!win) return false;
+
+        try {
+            const wmClass = (win.get_wm_class ? win.get_wm_class() : win.wm_class) || '';
+            const wmInstance = (win.get_wm_class_instance ? win.get_wm_class_instance() : '') || '';
+            const gtkId = (win.get_gtk_application_id ? win.get_gtk_application_id() : win.gtk_application_id) || '';
+            const sandboxedId = (win.get_sandboxed_app_id ? win.get_sandboxed_app_id() : '') || '';
+
+            const identifiers = [
+                wmClass,
+                wmInstance,
+                gtkId,
+                sandboxedId
+            ].map(s => (s || '').toLowerCase());
+
+            const terminalKeywords = [
+                'terminal', 'ptyxis', 'alacritty', 'kitty', 'foot', 'wezterm',
+                'ghostty', 'terminator', 'tilix', 'xterm', 'urxvt', 'konsole',
+                'lxterminal', 'mate-terminal', 'xfce4-terminal', 'guake', 'tilda',
+                'hyper', 'tabby', 'blackbox', 'rio', 'warp', 'console'
+            ];
+
+            for (const text of identifiers) {
+                for (const kw of terminalKeywords) {
+                    if (text.includes(kw)) return true;
+                }
+            }
+
+            const app = Shell.WindowTracker.get_default().get_window_app(win);
+            if (app) {
+                const appId = (app.get_id() || '').toLowerCase();
+                for (const kw of terminalKeywords) {
+                    if (appId.includes(kw)) return true;
+                }
+
+                const appInfo = app.get_app_info();
+                if (appInfo) {
+                    const categories = (appInfo.get_categories() || '').toLowerCase();
+                    if (categories.includes('terminalemulator')) {
+                        return true;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[ClipboardBridge] Error detecting terminal:', e);
+        }
+
+        return false;
+    }
+
     Paste() {
         if (!this._virtualKeyboard) {
             try {
@@ -47,18 +100,43 @@ export default class ClipboardBridgeExtension extends Extension {
             }
         }
 
+        const win = global.display.focus_window;
+        const isTerminal = this._isTerminalWindow(win);
         const time = GLib.get_monotonic_time();
-        // Hardware evdev keycodes: KEY_LEFTCTRL = 29, KEY_V = 47
+
+        // Hardware evdev keycodes: KEY_LEFTCTRL = 29, KEY_LEFTSHIFT = 42, KEY_V = 47
         try {
-            this._virtualKeyboard.notify_key(time, 29, Clutter.KeyState.PRESSED);
-            this._virtualKeyboard.notify_key(time + 20000, 47, Clutter.KeyState.PRESSED);
-            this._virtualKeyboard.notify_key(time + 40000, 47, Clutter.KeyState.RELEASED);
-            this._virtualKeyboard.notify_key(time + 60000, 29, Clutter.KeyState.RELEASED);
+            if (isTerminal) {
+                this._virtualKeyboard.notify_key(time, 29, Clutter.KeyState.PRESSED);
+                this._virtualKeyboard.notify_key(time + 15000, 42, Clutter.KeyState.PRESSED);
+                this._virtualKeyboard.notify_key(time + 30000, 47, Clutter.KeyState.PRESSED);
+                this._virtualKeyboard.notify_key(time + 45000, 47, Clutter.KeyState.RELEASED);
+                this._virtualKeyboard.notify_key(time + 60000, 42, Clutter.KeyState.RELEASED);
+                this._virtualKeyboard.notify_key(time + 75000, 29, Clutter.KeyState.RELEASED);
+            } else {
+                this._virtualKeyboard.notify_key(time, 29, Clutter.KeyState.PRESSED);
+                this._virtualKeyboard.notify_key(time + 20000, 47, Clutter.KeyState.PRESSED);
+                this._virtualKeyboard.notify_key(time + 40000, 47, Clutter.KeyState.RELEASED);
+                this._virtualKeyboard.notify_key(time + 60000, 29, Clutter.KeyState.RELEASED);
+            }
         } catch (e) {
-            this._virtualKeyboard.notify_keyval(time, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
-            this._virtualKeyboard.notify_keyval(time + 20000, Clutter.KEY_v, Clutter.KeyState.PRESSED);
-            this._virtualKeyboard.notify_keyval(time + 40000, Clutter.KEY_v, Clutter.KeyState.RELEASED);
-            this._virtualKeyboard.notify_keyval(time + 60000, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
+            try {
+                if (isTerminal) {
+                    this._virtualKeyboard.notify_keyval(time, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
+                    this._virtualKeyboard.notify_keyval(time + 15000, Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
+                    this._virtualKeyboard.notify_keyval(time + 30000, Clutter.KEY_v, Clutter.KeyState.PRESSED);
+                    this._virtualKeyboard.notify_keyval(time + 45000, Clutter.KEY_v, Clutter.KeyState.RELEASED);
+                    this._virtualKeyboard.notify_keyval(time + 60000, Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED);
+                    this._virtualKeyboard.notify_keyval(time + 75000, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
+                } else {
+                    this._virtualKeyboard.notify_keyval(time, Clutter.KEY_Control_L, Clutter.KeyState.PRESSED);
+                    this._virtualKeyboard.notify_keyval(time + 20000, Clutter.KEY_v, Clutter.KeyState.PRESSED);
+                    this._virtualKeyboard.notify_keyval(time + 40000, Clutter.KEY_v, Clutter.KeyState.RELEASED);
+                    this._virtualKeyboard.notify_keyval(time + 60000, Clutter.KEY_Control_L, Clutter.KeyState.RELEASED);
+                }
+            } catch (err) {
+                console.error('[ClipboardBridge] Error injecting paste keystrokes:', err);
+            }
         }
     }
 }

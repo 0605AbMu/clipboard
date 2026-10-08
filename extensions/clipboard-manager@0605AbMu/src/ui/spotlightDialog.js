@@ -3,17 +3,24 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+let spotlightGTypeName = 'ClipboardSpotlightDialog';
+if (GObject.type_from_name(spotlightGTypeName)) {
+    spotlightGTypeName = `ClipboardSpotlightDialog_${Date.now()}`;
+}
+
 export const SpotlightDialog = GObject.registerClass({
-    GTypeName: 'ClipboardSpotlightDialog',
+    GTypeName: spotlightGTypeName,
     Signals: {
         'closed': {},
         'item-selected': { param_types: [GObject.TYPE_STRING] },
         'item-deleted': { param_types: [GObject.TYPE_STRING] },
         'item-pin-toggled': { param_types: [GObject.TYPE_STRING] }
     }
-}, class ClipboardSpotlightDialog extends St.Widget {
+}, class extends St.Widget {
     _init(historyStore, inputSimulator, autoPaste = true) {
         super._init({
             style_class: 'clipboard-modal-backdrop',
@@ -39,6 +46,10 @@ export const SpotlightDialog = GObject.registerClass({
         this._stageEventId = 0;
         this._isClosing = false;
 
+        this._targetWindow = null;
+        this._isTargetTerminal = false;
+        this._captureTargetWindow();
+
         this._buildUI();
 
         this.connect('button-press-event', (actor, event) => {
@@ -57,6 +68,77 @@ export const SpotlightDialog = GObject.registerClass({
             }
             return Clutter.EVENT_PROPAGATE;
         });
+    }
+
+    _captureTargetWindow() {
+        try {
+            let win = global.display.focus_window;
+            if (!win) {
+                const normalWindows = global.display.get_tab_list(Meta.TabList.NORMAL, null);
+                if (normalWindows && normalWindows.length > 0) {
+                    win = normalWindows[0];
+                }
+            }
+            this._targetWindow = win;
+            this._isTargetTerminal = this._isTerminalWindow(win);
+        } catch (e) {
+            console.warn('[Clipboard] Failed to capture target window:', e);
+            this._targetWindow = null;
+            this._isTargetTerminal = false;
+        }
+    }
+
+    _isTerminalWindow(win) {
+        if (!win) return false;
+
+        try {
+            const wmClass = (win.get_wm_class ? win.get_wm_class() : win.wm_class) || '';
+            const wmInstance = (win.get_wm_class_instance ? win.get_wm_class_instance() : '') || '';
+            const gtkId = (win.get_gtk_application_id ? win.get_gtk_application_id() : win.gtk_application_id) || '';
+            const sandboxedId = (win.get_sandboxed_app_id ? win.get_sandboxed_app_id() : '') || '';
+
+            const identifiers = [
+                wmClass,
+                wmInstance,
+                gtkId,
+                sandboxedId
+            ].map(s => (s || '').toLowerCase());
+
+            const terminalKeywords = [
+                'terminal', 'ptyxis', 'alacritty', 'kitty', 'foot', 'wezterm',
+                'ghostty', 'terminator', 'tilix', 'xterm', 'urxvt', 'konsole',
+                'lxterminal', 'mate-terminal', 'xfce4-terminal', 'guake', 'tilda',
+                'hyper', 'tabby', 'blackbox', 'rio', 'warp', 'console'
+            ];
+
+            for (const text of identifiers) {
+                for (const kw of terminalKeywords) {
+                    if (text.includes(kw)) {
+                        return true;
+                    }
+                }
+            }
+
+            const app = Shell.WindowTracker.get_default().get_window_app(win);
+            if (app) {
+                const appId = (app.get_id() || '').toLowerCase();
+                for (const kw of terminalKeywords) {
+                    if (appId.includes(kw)) return true;
+                }
+
+                const appInfo = app.get_app_info();
+                if (appInfo) {
+                    const categories = (appInfo.get_categories() || '').toLowerCase();
+                    if (categories.includes('terminalemulator')) {
+                        return true;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[Clipboard] Error detecting terminal window:', e);
+        }
+
+        return false;
     }
 
     _buildUI() {
@@ -180,6 +262,7 @@ export const SpotlightDialog = GObject.registerClass({
     }
 
     open() {
+        this._captureTargetWindow();
         this.visible = true;
 
         this._grab = Main.pushModal(this);
@@ -435,13 +518,21 @@ export const SpotlightDialog = GObject.registerClass({
         clip.set_text(St.ClipboardType.CLIPBOARD, textToPaste);
         clip.set_text(St.ClipboardType.PRIMARY, textToPaste);
 
+        const isTerminal = this._isTargetTerminal;
+        const targetWin = this._targetWindow;
+
         // 2. Close dialog to restore focus to active target window
         this.close();
 
         // 3. Inject native paste keystrokes directly via Clutter VirtualInputDevice
         if (this._autoPaste) {
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 60, () => {
-                this._inputSimulator.paste();
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, () => {
+                if (targetWin && typeof targetWin.has_focus === 'function' && !targetWin.has_focus()) {
+                    try {
+                        targetWin.activate(global.get_current_time());
+                    } catch (e) { }
+                }
+                this._inputSimulator.paste(isTerminal);
                 return GLib.SOURCE_REMOVE;
             });
         }

@@ -188,10 +188,45 @@ public class LinuxPlatformService : IPlatformService
             // 3. Fallback to xdotool on X11
             try
             {
-                RunCommand("xdotool", "key", "--clearmodifiers", "ctrl+v");
+                var isTerminal = IsActiveWindowTerminal();
+                if (isTerminal)
+                {
+                    RunCommand("xdotool", "key", "--clearmodifiers", "ctrl+shift+v");
+                }
+                else
+                {
+                    RunCommand("xdotool", "key", "--clearmodifiers", "ctrl+v");
+                }
             }
             catch { }
         });
+    }
+
+    private static bool IsActiveWindowTerminal()
+    {
+        try
+        {
+            var winId = RunCommand("xdotool", "getactivewindow");
+            if (!string.IsNullOrWhiteSpace(winId))
+            {
+                var wmClass = RunCommand("xdotool", "getwindowclassname", winId.Trim()) ?? string.Empty;
+                var winName = RunCommand("xdotool", "getwindowname", winId.Trim()) ?? string.Empty;
+                var combined = (wmClass + " " + winName).ToLowerInvariant();
+                return combined.Contains("terminal") ||
+                       combined.Contains("ptyxis") ||
+                       combined.Contains("alacritty") ||
+                       combined.Contains("kitty") ||
+                       combined.Contains("foot") ||
+                       combined.Contains("wezterm") ||
+                       combined.Contains("konsole") ||
+                       combined.Contains("tilix") ||
+                       combined.Contains("terminator") ||
+                       combined.Contains("xterm");
+            }
+        }
+        catch { }
+
+        return false;
     }
 
     private static bool TryExtensionSimulatePaste()
@@ -230,8 +265,17 @@ public class LinuxPlatformService : IPlatformService
     {
         try
         {
-            // Hardware evdev keycodes: KEY_LEFTCTRL = 29, KEY_V = 47
-            var script = "import dbus, time; b=dbus.SessionBus(); m=b.get_object('org.gnome.Mutter.RemoteDesktop','/org/gnome/Mutter/RemoteDesktop'); sp=dbus.Interface(m,'org.gnome.Mutter.RemoteDesktop').CreateSession(); s=dbus.Interface(b.get_object('org.gnome.Mutter.RemoteDesktop',sp),'org.gnome.Mutter.RemoteDesktop.Session'); s.Start(); s.NotifyKeyboardKeycode(dbus.UInt32(29),True); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(47),True); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(47),False); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(29),False); time.sleep(0.03); s.Stop()";
+            var isTerminal = IsActiveWindowTerminal();
+            // Hardware evdev keycodes: KEY_LEFTCTRL = 29, KEY_LEFTSHIFT = 42, KEY_V = 47
+            string script;
+            if (isTerminal)
+            {
+                script = "import dbus, time; b=dbus.SessionBus(); m=b.get_object('org.gnome.Mutter.RemoteDesktop','/org/gnome/Mutter/RemoteDesktop'); sp=dbus.Interface(m,'org.gnome.Mutter.RemoteDesktop').CreateSession(); s=dbus.Interface(b.get_object('org.gnome.Mutter.RemoteDesktop',sp),'org.gnome.Mutter.RemoteDesktop.Session'); s.Start(); s.NotifyKeyboardKeycode(dbus.UInt32(29),True); time.sleep(0.02); s.NotifyKeyboardKeycode(dbus.UInt32(42),True); time.sleep(0.02); s.NotifyKeyboardKeycode(dbus.UInt32(47),True); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(47),False); time.sleep(0.02); s.NotifyKeyboardKeycode(dbus.UInt32(42),False); time.sleep(0.02); s.NotifyKeyboardKeycode(dbus.UInt32(29),False); time.sleep(0.02); s.Stop()";
+            }
+            else
+            {
+                script = "import dbus, time; b=dbus.SessionBus(); m=b.get_object('org.gnome.Mutter.RemoteDesktop','/org/gnome/Mutter/RemoteDesktop'); sp=dbus.Interface(m,'org.gnome.Mutter.RemoteDesktop').CreateSession(); s=dbus.Interface(b.get_object('org.gnome.Mutter.RemoteDesktop',sp),'org.gnome.Mutter.RemoteDesktop.Session'); s.Start(); s.NotifyKeyboardKeycode(dbus.UInt32(29),True); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(47),True); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(47),False); time.sleep(0.03); s.NotifyKeyboardKeycode(dbus.UInt32(29),False); time.sleep(0.03); s.Stop()";
+            }
 
             var psi = new ProcessStartInfo
             {
@@ -310,12 +354,12 @@ public class LinuxPlatformService : IPlatformService
                 var currentListRaw = RunCommand("gsettings", "get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings");
                 if (string.IsNullOrEmpty(currentListRaw)) return;
 
-                // Configure Ctrl+Shift+V
+                // Configure Super+V
                 string path1 = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle/";
                 string schema1 = $"org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:{path1}";
-                RunCommand("gsettings", "set", schema1, "name", "Clipboard Manager");
+                RunCommand("gsettings", "set", schema1, "name", "Clipboard Manager (Super+V)");
                 RunCommand("gsettings", "set", schema1, "command", toggleCmd);
-                RunCommand("gsettings", "set", schema1, "binding", "<Primary><Shift>v");
+                RunCommand("gsettings", "set", schema1, "binding", "<Super>v");
 
                 // Configure Alt+V
                 string path2 = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle-alt/";

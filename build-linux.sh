@@ -2,7 +2,7 @@
 set -e
 
 ARCH="${1:-linux-x64}"
-VERSION="${2:-2.0.0}"
+VERSION="${2:-2.0.1}"
 APP_NAME="MacDesktopApp"
 PACKAGE_NAME="Clipboard-${VERSION}-${ARCH}"
 OUTPUT_DIR="dist-${ARCH}"
@@ -103,7 +103,7 @@ Homepage: https://github.com/0605AbMu/clipboard
 Description: Native Plain-Text Clipboard Manager GNOME Shell Extension
  High-performance, minimalist plain-text clipboard manager extension for GNOME.
  Runs natively inside GNOME Shell with 0ms virtual paste, history search,
- and custom hotkeys (Super+V, Ctrl+Shift+V).
+ and custom hotkey (Super+V / Win+V).
 EOF
 
 # Create DEBIAN/preinst (Completely wipes legacy standalone app and processes)
@@ -125,11 +125,12 @@ rm -f /usr/bin/clipboard
 rm -f /usr/share/applications/clipboard.desktop
 rm -rf /usr/share/gnome-shell/extensions/clipboard-bridge@0605AbMu
 
-# 3. Clean user-level legacy autostart and old bridge extensions for all human users
+# 3. Clean user-level legacy autostart and old bridge/prototype extensions for all human users
 for udir in /home/*; do
     if [ -d "$udir" ]; then
         rm -f "$udir/.config/autostart/clipboard.desktop"
         rm -rf "$udir/.local/share/gnome-shell/extensions/clipboard-bridge@0605AbMu"
+        rm -rf "$udir/.local/share/gnome-shell/extensions/clipboard@0605AbMu"
     fi
 done
 
@@ -162,15 +163,19 @@ if [ "$1" = "configure" ]; then
     for udir in /home/*; do
         uname=$(basename "$udir")
         if id -u "$uname" >/dev/null 2>&1; then
-            # Sync to user extensions directory for instant detection
+            # Sync atomically to user extensions directory for instant detection
             user_ext="$udir/.local/share/gnome-shell/extensions/clipboard-manager@0605AbMu"
-            mkdir -p "$user_ext"
-            cp -rf /usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu/* "$user_ext/"
-            chown -R "$uname:$uname" "$user_ext" 2>/dev/null || true
+            tmp_ext="${user_ext}.tmp.$$"
+            rm -rf "$tmp_ext"
+            mkdir -p "$tmp_ext"
+            cp -rf /usr/share/gnome-shell/extensions/clipboard-manager@0605AbMu/* "$tmp_ext/"
 
             if which glib-compile-schemas >/dev/null 2>&1; then
-                glib-compile-schemas "$user_ext/schemas" 2>/dev/null || true
+                glib-compile-schemas "$tmp_ext/schemas" 2>/dev/null || true
             fi
+            chown -R "$uname:$uname" "$tmp_ext" 2>/dev/null || true
+            rm -rf "$user_ext"
+            mv -f "$tmp_ext" "$user_ext"
 
             # Clean up old custom keybindings and add extension to enabled-extensions
             uid=$(id -u "$uname" 2>/dev/null || true)
@@ -180,7 +185,6 @@ if [ "$1" = "configure" ]; then
                     # Clear legacy media-keys
                     gsettings reset-recursively org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle/ 2>/dev/null || true
                     gsettings reset-recursively org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipboard-toggle-alt/ 2>/dev/null || true
-                    gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings \"@as []\" 2>/dev/null || true
 
                     # Free up Super+V from GNOME Shell built-in message tray shortcut
                     current_tray=\$(gsettings get org.gnome.shell.keybindings toggle-message-tray 2>/dev/null || echo '')
@@ -188,18 +192,39 @@ if [ "$1" = "configure" ]; then
                         gsettings set org.gnome.shell.keybindings toggle-message-tray \"['<Super>m']\" 2>/dev/null || true
                     fi
 
-                    # Add extension to enabled-extensions
-                    current=\$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || echo '')
-                    if [ -n \"\$current\" ] && ! echo \"\$current\" | grep -q 'clipboard-manager@0605AbMu'; then
-                        new_list=\$(echo \"\$current\" | sed \"s/]/, 'clipboard-manager@0605AbMu']/\")
-                        gsettings set org.gnome.shell enabled-extensions \"\$new_list\" 2>/dev/null || true
+                    # Safely enable clipboard-manager@0605AbMu and remove deprecated clipboard@0605AbMu
+                    python3 -c \"
+import subprocess, ast
+
+def run_cmd(cmd):
+    return subprocess.run(cmd, capture_output=True, text=True).stdout.strip()
+
+try:
+    raw = run_cmd(['gsettings', 'get', 'org.gnome.shell', 'enabled-extensions'])
+    val = raw.replace('@as', '').strip()
+    exts = ast.literal_eval(val) if val else []
+    if not isinstance(exts, list):
+        exts = []
+except Exception:
+    exts = []
+
+exts = [e for e in exts if e not in ('clipboard@0605AbMu', 'clipboard-bridge@0605AbMu')]
+if 'clipboard-manager@0605AbMu' not in exts:
+    exts.append('clipboard-manager@0605AbMu')
+
+formatted = str(exts)
+subprocess.run(['gsettings', 'set', 'org.gnome.shell', 'enabled-extensions', formatted])
+\" 2>/dev/null || true
+
+                    if which gnome-extensions >/dev/null 2>&1; then
+                        gnome-extensions enable clipboard-manager@0605AbMu 2>/dev/null || true
                     fi
                 " 2>/dev/null || true
             fi
         fi
     done
 
-    echo "==> Clipboard Manager GNOME Extension installed and activated successfully!"
+    echo \"==> Clipboard Manager GNOME Extension installed and activated successfully!\"
 fi
 
 exit 0
@@ -237,14 +262,30 @@ if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
         gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
     fi
 
-    # Restore default message tray keybinding
+    # Restore default message tray keybinding and clean user extensions
     for udir in /home/*; do
         uname=$(basename "$udir")
         uid=$(id -u "$uname" 2>/dev/null || true)
+        if [ "$1" = "purge" ]; then
+            rm -rf "$udir/.local/share/gnome-shell/extensions/clipboard-manager@0605AbMu"
+            rm -rf "$udir/.local/share/gnome-shell/extensions/clipboard@0605AbMu"
+        fi
         if [ -n "$uid" ] && [ -S "/run/user/$uid/bus" ]; then
             su - "$uname" -c "
                 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus
                 gsettings reset org.gnome.shell.keybindings toggle-message-tray 2>/dev/null || true
+                python3 -c \"
+import subprocess, ast
+try:
+    raw = subprocess.run(['gsettings', 'get', 'org.gnome.shell', 'enabled-extensions'], capture_output=True, text=True).stdout.strip()
+    val = raw.replace('@as', '').strip()
+    exts = ast.literal_eval(val) if val else []
+    if isinstance(exts, list):
+        exts = [e for e in exts if e not in ('clipboard-manager@0605AbMu', 'clipboard@0605AbMu', 'clipboard-bridge@0605AbMu')]
+        subprocess.run(['gsettings', 'set', 'org.gnome.shell', 'enabled-extensions', str(exts)])
+except Exception:
+    pass
+\" 2>/dev/null || true
             " 2>/dev/null || true
         fi
     done

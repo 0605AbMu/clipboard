@@ -81,7 +81,7 @@ jobs:
       - name: Install Native AOT build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang zlib1g-dev libkrb5-dev
+          sudo apt-get install -y clang zlib1g-dev libkrb5-dev libglib2.0-bin
 
       - name: Build self-contained Linux packages (.tar.gz and .deb)
         run: |

@@ -2,7 +2,7 @@
 <schemalist gettext-domain="gnome-shell-extensions">
   <schema id="org.gnome.shell.extensions.clipboard-manager" path="/org/gnome/shell/extensions/clipboard-manager/">
     <key name="toggle-shortcut" type="as">
-      <default>['&lt;Super&gt;v', '&lt;Control&gt;&lt;Shift&gt;v']</default>
+      <default>['&lt;Super&gt;v']</default>
       <summary>Toggle Clipboard Manager shortcut</summary>
       <description>Keybinding to show or hide the clipboard search overlay</description>
     </key>
